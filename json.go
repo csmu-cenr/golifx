@@ -6,10 +6,11 @@ import (
 
 func (b Bulb) MarshalJSON() ([]byte, error) {
 	index := map[string]interface{}{
-		"mac":         b.MacAddress(),
-		"ip":          b.ipAddress,
-		"label":       b.label,
-		"power_state": b.powerState,
+		"mac":              b.MacAddress(),
+		"ip_address":       b.ipAddress,
+		"label":            b.Label,
+		"power_state":      b.PowerState,
+		"hardware_address": b.HardwareAddress,
 	}
 
 	if b.stateHostInfo != nil {

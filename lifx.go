@@ -71,7 +71,7 @@ func LookupBulbs() ([]*Bulb, error) {
 		}
 
 		bulb := &Bulb{}
-		bulb.hardwareAddress = message.target
+		bulb.HardwareAddress = message.target
 		bulb.ipAddress = message.addr
 
 		var port uint32

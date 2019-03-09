@@ -2,6 +2,8 @@ package golifx
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,11 +14,11 @@ import (
 
 type (
 	Bulb struct {
-		hardwareAddress uint64
+		HardwareAddress uint64
 		ipAddress       net.Addr
 		port            uint32
-		label           string
-		powerState      bool
+		Label           string
+		PowerState      bool
 		stateHostInfo   *BulbSignalInfo
 		wifiInfo        *BulbSignalInfo
 		version         *BulbVersion
@@ -83,7 +85,7 @@ func (b *Bulb) sendAndReceive(msg *message) (*message, error) {
 }
 
 func (b *Bulb) sendAndReceiveDead(msg *message, deadLine time.Duration) (*message, error) {
-	msg.target = b.hardwareAddress
+	msg.target = b.HardwareAddress
 	messages, err := conn.sendAndReceiveDead(msg, deadLine)
 
 	if err != nil {
@@ -91,7 +93,7 @@ func (b *Bulb) sendAndReceiveDead(msg *message, deadLine time.Duration) (*messag
 	}
 
 	for _, m := range messages {
-		if m.target != b.hardwareAddress {
+		if m.target != b.HardwareAddress {
 			continue
 		}
 		return m, nil
@@ -101,7 +103,7 @@ func (b *Bulb) sendAndReceiveDead(msg *message, deadLine time.Duration) (*messag
 }
 
 func (b *Bulb) sendWithAcknowledgement(msg *message, deadLine time.Duration) error {
-	msg.target = b.hardwareAddress
+	msg.target = b.HardwareAddress
 	msg.ack_required = true
 
 	msg, err := b.sendAndReceiveDead(msg, deadLine)
@@ -116,14 +118,37 @@ func (b *Bulb) sendWithAcknowledgement(msg *message, deadLine time.Duration) err
 	return nil
 }
 
+func (b *Bulb) SetHardwareAddressFromMacAddress(mac_address string) (uint64, error) {
+	var err error
+	var result uint64
+	var mac []byte
+	var decoded []byte
+	var mac_address_without_colons string = strings.Replace(mac_address, ":", "", -1)
+
+	mac = make([]byte, 8)
+	decoded, err = hex.DecodeString(mac_address_without_colons)
+	if err == nil {
+		for index, code := range decoded {
+			fmt.Println(index, code)
+			mac[index] = code
+		}
+		result = uint64(binary.LittleEndian.Uint64(mac))
+		b.HardwareAddress = result
+	} else {
+		fmt.Println(err)
+	}
+
+	return result, err
+}
+
 func (b *Bulb) MacAddress() string {
 	mac := make([]byte, 8)
-	writeUInt64(mac, b.hardwareAddress)
+	writeUInt64(mac, b.HardwareAddress)
 	return strings.Replace(fmt.Sprintf("% x", mac[0:6]), " ", ":", -1)
 }
 
 func (b *Bulb) SetHardwareAddress(address uint64) {
-	b.hardwareAddress = address
+	b.HardwareAddress = address
 }
 
 func (b *Bulb) IP() net.Addr {
@@ -145,8 +170,8 @@ func (b *Bulb) GetPowerState() (bool, error) {
 
 	readUint16(msg.payout, &state)
 
-	b.powerState = state != 0
-	return b.powerState, nil
+	b.PowerState = state != 0
+	return b.PowerState, nil
 }
 
 func (b *Bulb) SetPowerState(state bool) error {
@@ -163,7 +188,7 @@ func (b *Bulb) SetPowerState(state bool) error {
 		return err
 	}
 
-	b.powerState = state
+	b.PowerState = state
 	return nil
 }
 
@@ -178,9 +203,9 @@ func (b *Bulb) GetLabel() (string, error) {
 		return "", ErrIncorrectResponseType
 	}
 
-	b.label = string(bytes.Trim(msg.payout, "\x00"))
+	b.Label = string(bytes.Trim(msg.payout, "\x00"))
 
-	return b.label, nil
+	return b.Label, nil
 }
 
 func (b *Bulb) SetLabel(label string) error {
@@ -200,7 +225,7 @@ func (b *Bulb) SetLabel(label string) error {
 		return err
 	}
 
-	b.label = label
+	b.Label = label
 	return nil
 }
 
@@ -412,8 +437,8 @@ func (b *Bulb) GetPowerDurationState() (bool, error) {
 
 	readUint16(msg.payout, &state)
 
-	b.powerState = state != 0
-	return b.powerState, nil
+	b.PowerState = state != 0
+	return b.PowerState, nil
 }
 
 func (b *Bulb) SetPowerDurationState(state bool, duration uint32) error {
@@ -435,7 +460,7 @@ func (b *Bulb) SetPowerDurationState(state bool, duration uint32) error {
 		return err
 	}
 
-	b.powerState = state
+	b.PowerState = state
 	return nil
 }
 
@@ -471,8 +496,8 @@ func (b *Bulb) GetColorState() (*BulbState, error) {
 	}
 
 	state := parseColorState(msg.payout)
-	b.powerState = state.Power
-	b.label = state.Label
+	b.PowerState = state.Power
+	b.Label = state.Label
 	b.color = state.Color
 	return state, nil
 }
@@ -516,8 +541,8 @@ func (b *Bulb) SetColorStateWithResponse(hsbk *HSBK, duration uint32) (*BulbStat
 	}
 
 	state := parseColorState(msg.payout)
-	b.powerState = state.Power
-	b.label = state.Label
+	b.PowerState = state.Power
+	b.Label = state.Label
 	b.color = state.Color
 	return state, nil
 }
@@ -541,8 +566,8 @@ func (b *Bulb) SetWaveform(transient bool, hsbk *HSBK, period uint32, cycles flo
 	}
 
 	state := parseColorState(msg.payout)
-	b.powerState = state.Power
-	b.label = state.Label
+	b.PowerState = state.Power
+	b.Label = state.Label
 	b.color = state.Color
 	return state, nil
 }
@@ -593,11 +618,15 @@ func (b BulbState) String() string {
 func (b Bulb) String() string {
 	str := fmt.Sprintf("MAC: %s\nIP: %s\n", b.MacAddress(), b.IP())
 
-	if b.label != "" {
-		str += fmt.Sprintf("Label: %s\n", b.label)
+	if b.HardwareAddress != 0 || true {
+		str += fmt.Sprintf("HardwareAddress: %d\n", b.HardwareAddress)
 	}
 
-	str += fmt.Sprintf("Power state: %t\n", b.powerState)
+	if b.Label != "" {
+		str += fmt.Sprintf("Label: %s\n", b.Label)
+	}
+
+	str += fmt.Sprintf("Power state: %t\n", b.PowerState)
 
 	if b.stateHostInfo != nil {
 		str += fmt.Sprintf("Host info:\n%s", b.stateHostInfo)
