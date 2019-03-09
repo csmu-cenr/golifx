@@ -119,6 +119,7 @@ func (b *Bulb) sendWithAcknowledgement(msg *message, deadLine time.Duration) err
 }
 
 func (b *Bulb) SetHardwareAddressFromMacAddress(mac_address string) (uint64, error) {
+
 	var err error
 	var result uint64
 	var mac []byte
@@ -129,7 +130,6 @@ func (b *Bulb) SetHardwareAddressFromMacAddress(mac_address string) (uint64, err
 	decoded, err = hex.DecodeString(mac_address_without_colons)
 	if err == nil {
 		for index, code := range decoded {
-			fmt.Println(index, code)
 			mac[index] = code
 		}
 		result = uint64(binary.LittleEndian.Uint64(mac))

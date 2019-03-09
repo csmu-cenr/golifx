@@ -43,7 +43,6 @@ func load(path string) ([]*golifx.Bulb, error) {
 				bulb.SetHardwareAddressFromMacAddress(mac)
 			}
 			result = append(result, bulb)
-			fmt.Println(bulb)
 		}
 	} else {
 		fmt.Println(err)
@@ -80,6 +79,7 @@ func export(path string) (bool, error) {
 	return result, err
 }
 
+var bulb *golifx.Bulb
 var bulbs []*golifx.Bulb
 
 func main() {
@@ -100,6 +100,13 @@ func main() {
 
 			var ok bool
 			var path string
+			var power_state bool
+			var set_power_state bool
+			var mac string
+			var find_by_mac bool
+			var bulbs_by_mac_address map[string]*golifx.Bulb
+
+			bulbs_by_mac_address = make(map[string]*golifx.Bulb)
 
 			children, _ := arguments.Children()
 			for _, child := range children {
@@ -110,7 +117,24 @@ func main() {
 				path, ok = child.Path("load").Data().(string)
 				if ok {
 					bulbs, err = load(path)
-					fmt.Println(bulbs)
+					for _, bulb := range bulbs {
+						bulbs_by_mac_address[bulb.MacAddress()] = bulb
+					}
+				}
+			}
+			for _, child := range children {
+				fmt.Println(child)
+				mac, find_by_mac = child.Path("mac").Data().(string)
+				power_state, set_power_state = child.Path("power_state").Data().(bool)
+				if find_by_mac {
+					bulb, ok := bulbs_by_mac_address[mac]
+					if ok {
+						if set_power_state {
+							bulb.SetPowerState(power_state)
+						}
+					} else {
+						fmt.Println("bulb.MacAddress: %s was not found.", mac)
+					}
 				}
 			}
 
