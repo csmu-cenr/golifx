@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	//	"time"
+	"time"
 
 	"github.com/Jeffail/gabs"
 	"github.com/csmu-cenr/golifx"
@@ -104,6 +104,9 @@ func main() {
 			var set_power_state bool
 			var mac string
 			var find_by_mac bool
+			var sleep_float64 float64
+			var sleep int64
+			var sleep_awhile bool
 			var bulbs_by_mac_address map[string]*golifx.Bulb
 
 			bulbs_by_mac_address = make(map[string]*golifx.Bulb)
@@ -126,6 +129,13 @@ func main() {
 				fmt.Println(child)
 				mac, find_by_mac = child.Path("mac").Data().(string)
 				power_state, set_power_state = child.Path("power_state").Data().(bool)
+				sleep_float64, sleep_awhile = child.Path("sleep").Data().(float64)
+				if sleep_awhile {
+					fmt.Println("Sleeping", sleep, time.Now())
+					sleep = int64(sleep_float64)
+					time.Sleep(time.Duration(sleep) * time.Millisecond)
+					fmt.Println("Awake after", sleep, time.Now())
+				}
 				if find_by_mac {
 					bulb, ok := bulbs_by_mac_address[mac]
 					if ok {
