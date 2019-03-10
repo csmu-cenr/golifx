@@ -28,7 +28,6 @@ func load(path string) ([]*golifx.Bulb, error) {
 	if err == nil {
 		children, _ = bulbs.Children()
 		for _, child := range children {
-			fmt.Println(child.String())
 			bulb = &golifx.Bulb{}
 			label, ok = child.Path("label").Data().(string)
 			if ok {
